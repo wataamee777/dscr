@@ -2,33 +2,41 @@ name: Node.js Package CI/CD
 
 on:
   release:
-    types: [created] # GitHubで「Release」を作成したときに実行
-  workflow_dispatch: # GitHubの画面から手動で実行することも可能にする
+    types: [created]
+  workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # GitHub Packagesへの書き込み権限を許可
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Bunの環境をセットアップ
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 'latest'
+
+      # GitHub Packagesの認証設定用（npm publish自体は必要なのでNodeもセット）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://npm.pkg.github.com' # 公開先をGitHubに設定
+          registry-url: 'https://npm.pkg.github.com'
           scope: '@wataamee777'
 
+      # Bunで依存関係をインストール
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build TypeScript
-        run: npm run build
+        run: bun run build
 
+      # 公開を実行（認証トークンを渡す）
       - name: Publish to GitHub Packages
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHubが自動発行するトークンを使用
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 {
-  "name": "dscr",
-  "version": "0.1.1",
+  "name": "@wataamee777/dscr",
+  "version": "1.0.1",
   "description": "Lightweight, type-safe Discord REST API wrapper for TypeScript.",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,6 +21,13 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wataamee777/dscr"
   },
   "dependencies": {
     "@discordjs/rest": "^2.5.1",
