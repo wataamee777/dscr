@@ -1,6 +1,6 @@
 {
   "name": "@wataamee777/dscr",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Lightweight, type-safe Discord REST API wrapper for TypeScript.",
   "type": "module",
   "main": "./dist/index.js",
