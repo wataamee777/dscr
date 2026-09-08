@@ -21,10 +21,15 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install dependencies & Build
         run: |
-          npm ci
-          npm run build
+          bun ci
+          bun run build
 
       # ----------------------------------------------------
       # 1. npmjs.com へパブリッシュ
