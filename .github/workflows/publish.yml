@@ -52,5 +52,8 @@ jobs:
           cat package.json | grep -E '"name"|"registry"' # 確認ログ
 
       - name: Publish to npmjs.com
-        # 完全に独立したレジストリを指定。--access public を添えてパブリッシュします
-        run: npm publish --registry=https://npmjs.org --access public
+        # 引数の --registry は削除し、--access public のみにします
+        run: npm publish --access public
+        env:
+          # 環境変数でレジストリを明示することで、OIDC認証が正常に機能します
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
