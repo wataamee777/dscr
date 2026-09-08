@@ -17,47 +17,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 速度向上のため、Node.jsの設定とキャッシュを共通化
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # ユーザーお気に入りの最速マネージャー Bun をセットアップ
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # Bunによる高速なインストールとビルド
       - name: Install dependencies & Build
         run: |
           bun install --frozen-lockfile
           bun run build
 
       # ----------------------------------------------------
-      # 1. npmjs.com へパブリッシュ (Trusted Publishing)
+      # 1. GitHub Packages へパブリッシュ（先に行うのが安全）
       # ----------------------------------------------------
-      - name: Publish to npmjs.com
-        # 引数で直接レジストリを指定。NPM_TOKENシークレットの管理は不要です！
-        run: npm publish --registry=https://registry.npmjs.org --access public
-        # ※もし従来の「Automationトークン」を使う場合は、以下のenvコメントアウトを解除してください
-        # env:
-        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # ----------------------------------------------------
-      # 2. GitHub Packages へパブリッシュ
-      # ----------------------------------------------------
-      # GitHub Packagesは「@オーナー名/パッケージ名」の形式が必須なため、
-      # package.json をその場で一時的に書き換えます（jqコマンドを使用）
-      - name: Rewrite package.json name for GitHub Packages
-        run: |
-          jq '.name = "@'"${{ github.repository_owner }}"'/'"$(jq -r .name package.json)"'"' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          cat package.json | grep '"name":' # 確認用ログ
-
+      # package.jsonのデフォルト設定（@wataamee777/dscr ＆ publishConfig）のまま流します
       - name: Publish to GitHub Packages
-        # GitHubレジストリの指定と、自動生成されるGITHUB_TOKENをそのまま使います
-        run: npm publish --registry=https://npm.pkg.github.com
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ----------------------------------------------------
+      # 2. npmjs.com へパブリッシュ
+      # ----------------------------------------------------
+      # npmjs.com用に、publishConfigを削除し、スコープ（@wataamee777/）を外して純粋な「dscr」にします
+      - name: Modify package.json for npmjs.com
+        run: |
+          jq 'del(.publishConfig) | .name = "dscr"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          cat package.json | grep -E '"name"|"registry"' # 確認ログ
+
+      - name: Publish to npmjs.com
+        # 完全に独立したレジストリを指定。--access public を添えてパブリッシュします
+        run: npm publish --registry=https://npmjs.org --access public
