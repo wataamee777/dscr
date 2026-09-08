@@ -1,0 +1,34 @@
+name: Node.js Package CI/CD
+
+on:
+  release:
+    types: [created] # GitHubで「Release」を作成したときに実行
+  workflow_dispatch: # GitHubの画面から手動で実行することも可能にする
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # GitHub Packagesへの書き込み権限を許可
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com' # 公開先をGitHubに設定
+          scope: '@wataamee777'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHubが自動発行するトークンを使用
