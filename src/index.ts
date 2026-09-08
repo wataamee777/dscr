@@ -1,5 +1,5 @@
-import { REST } from "@discordjs/rest";
-import { Routes } from 'discord-api-types/v10';
+import { REST, type RequestMethod, type RouteLike } from "@discordjs/rest";
+import { Routes } from "discord-api-types/v10";
 import type {
   APIGuild,
   APIChannel,
@@ -7,6 +7,8 @@ import type {
   APIMessage,
   APIRole,
   APIUser,
+  APIGuildMember,
+  APIEmoji,
   RESTGetAPIGatewayBotResult,
   RESTGetAPIGuildChannelsResult,
   RESTGetAPIGuildMembersResult,
@@ -16,14 +18,13 @@ import type {
   RESTPutAPIChannelPermissionJSONBody,
   RESTPatchAPIGuildJSONBody,
   RESTPatchAPIGuildMemberJSONBody,
-  RESTPatchAPIRoleJSONBody,
+  RESTPatchAPIGuildRoleJSONBody,
   RESTPostAPIGuildRoleJSONBody,
-  RESTPostAPIGuildBanJSONBody,
+  RESTPutAPIGuildBanJSONBody,
   RESTPostAPIChannelInviteJSONBody,
   RESTPostAPIGuildEmojiJSONBody,
   RESTPatchAPIGuildEmojiJSONBody,
   RESTPostAPIWebhookWithTokenJSONBody,
-  RESTExecuteWebhookJSONBody,
   RESTGetAPIInviteResult,
   RESTGetAPIChannelResult,
   RESTGetAPIGuildResult,
@@ -37,19 +38,15 @@ import type {
   RESTGetAPIGuildScheduledEventsResult,
   RESTGetAPIGuildScheduledEventResult,
   RESTGetAPIGuildThreadsResult,
-  RESTGetAPIChannelThreadsResult,
   RESTGetAPIChannelPinsResult,
   RESTGetAPIApplicationCommandsResult,
   RESTGetAPIApplicationCommandResult,
-  RESTGetAPIApplicationEmojisResult,
   RESTGetAPIAutoModerationRulesResult,
   RESTGetAPIAutoModerationRuleResult,
   RESTGetAPIGuildStickersResult,
   RESTGetAPIStickerResult,
-  RESTGetAPIGuildIntegrationsResult,
-  RESTGetAPIGuildPruneResult,
   RESTGetAPIGuildPreviewResult,
-  RESTGetAPIGuildWidgetResult,
+  RESTGetAPIGuildWidgetJSONResult,
   RESTGetAPIGuildVanityUrlResult,
   RESTGetAPIGuildWidgetSettingsResult,
   RESTGetAPIGuildWidgetImageResult
@@ -72,14 +69,14 @@ export class Dscr {
   }
 
   private request<T>(
-    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-    path: string,
+    method: RequestMethod | `${RequestMethod}`,
+    path: RouteLike,
     options: DscrRequestOptions = {},
     body?: unknown,
     query?: Record<string, string | number | boolean | undefined>
   ): Promise<T> {
     return this.rest.request({
-      method,
+      method: method as RequestMethod,
       fullRoute: path,
       authPrefix: options.authType ?? this.authType,
       body: body as never,
@@ -93,8 +90,8 @@ export class Dscr {
 
   raw<T = unknown>(options: DscrRawOptions): Promise<T> {
     return this.request<T>(
-      options.method,
-      options.path,
+      options.method as RequestMethod,
+      options.path as RouteLike,
       options,
       options.body,
       options.query
@@ -223,11 +220,11 @@ export class Dscr {
   }
 
   getGuildMember(guildId: string, userId: string, options?: DscrRequestOptions) {
-    return this.request<RESTGetAPIGuildMemberResult>("GET", Routes.guildMember(guildId, userId), options);
+    return this.request<APIGuildMember>("GET", Routes.guildMember(guildId, userId), options);
   }
 
   modifyGuildMember(guildId: string, userId: string, payload: RESTPatchAPIGuildMemberJSONBody, options?: DscrRequestOptions) {
-    return this.request<RESTPatchAPIGuildMemberResult>("PATCH", Routes.guildMember(guildId, userId), options, payload);
+    return this.request<APIGuildMember>("PATCH", Routes.guildMember(guildId, userId), options, payload);
   }
 
   addGuildMemberRole(guildId: string, userId: string, roleId: string, options?: DscrRequestOptions) {
@@ -246,7 +243,7 @@ export class Dscr {
     return this.request<RESTGetAPIGuildBansResult>("GET", Routes.guildBans(guildId), options, undefined, query);
   }
 
-  banMember(guildId: string, userId: string, payload: RESTPostAPIGuildBanJSONBody = {}, options?: DscrRequestOptions) {
+  banMember(guildId: string, userId: string, payload: RESTPutAPIGuildBanJSONBody = {}, options?: DscrRequestOptions) {
     return this.request<void>("PUT", Routes.guildBan(guildId, userId), options, payload);
   }
 
@@ -266,7 +263,7 @@ export class Dscr {
     return this.request<APIRole>("POST", Routes.guildRoles(guildId), options, payload);
   }
 
-  modifyGuildRole(guildId: string, roleId: string, payload: RESTPatchAPIRoleJSONBody, options?: DscrRequestOptions) {
+  modifyGuildRole(guildId: string, roleId: string, payload: RESTPatchAPIGuildRoleJSONBody, options?: DscrRequestOptions) {
     return this.request<APIRole>("PATCH", Routes.guildRole(guildId, roleId), options, payload);
   }
 
@@ -274,8 +271,8 @@ export class Dscr {
     return this.request<void>("DELETE", Routes.guildRole(guildId, roleId), options);
   }
 
-  modifyGuildRolePositions(guildId: string, payload: Array<{ id: string; position: number | null }>, options?: DscrRequestOptions) {
-    return this.request<APIRole[]>("PATCH", Routes.guildRolePositions(guildId), options, payload);
+  modifyGuildRolePositions(guildId: string, payload: Array<{ id: string; position?: number | null }>, options?: DscrRequestOptions) {
+    return this.request<APIRole[]>("PATCH", Routes.guildRoles(guildId), options, payload);
   }
 
   getGuildInvites(guildId: string, options?: DscrRequestOptions) {
@@ -299,7 +296,7 @@ export class Dscr {
   }
 
   getGuildThreads(guildId: string, options?: DscrRequestOptions) {
-    return this.request<RESTGetAPIGuildThreadsResult>("GET", Routes.guildThreads(guildId), options);
+    return this.request<RESTGetAPIGuildThreadsResult>("GET", Routes.guildActiveThreads(guildId), options);
   }
 
   getGuildEmojis(guildId: string, options?: DscrRequestOptions) {
@@ -307,11 +304,11 @@ export class Dscr {
   }
 
   createGuildEmoji(guildId: string, payload: RESTPostAPIGuildEmojiJSONBody, options?: DscrRequestOptions) {
-    return this.request<unknown>("POST", Routes.guildEmojis(guildId), options, payload);
+    return this.request<APIEmoji>("POST", Routes.guildEmojis(guildId), options, payload);
   }
 
   modifyGuildEmoji(guildId: string, emojiId: string, payload: RESTPatchAPIGuildEmojiJSONBody, options?: DscrRequestOptions) {
-    return this.request<unknown>("PATCH", Routes.guildEmoji(guildId, emojiId), options, payload);
+    return this.request<APIEmoji>("PATCH", Routes.guildEmoji(guildId, emojiId), options, payload);
   }
 
   deleteGuildEmoji(guildId: string, emojiId: string, options?: DscrRequestOptions) {
@@ -356,11 +353,11 @@ export class Dscr {
     return this.request<void>("DELETE", Routes.webhook(webhookId), options);
   }
 
-  executeWebhook(webhookId: string, webhookToken: string, payload: RESTExecuteWebhookJSONBody, options?: DscrRequestOptions) {
+  executeWebhook(webhookId: string, webhookToken: string, payload: RESTPostAPIWebhookWithTokenJSONBody, options?: DscrRequestOptions) {
     return this.request<APIMessage | void>("POST", Routes.webhook(webhookId, webhookToken), options, payload);
   }
 
-  editWebhookMessage(webhookId: string, webhookToken: string, messageId: string, payload: RESTExecuteWebhookJSONBody, options?: DscrRequestOptions) {
+  editWebhookMessage(webhookId: string, webhookToken: string, messageId: string, payload: RESTPostAPIWebhookWithTokenJSONBody, options?: DscrRequestOptions) {
     return this.request<APIMessage>("PATCH", Routes.webhookMessage(webhookId, webhookToken, messageId), options, payload);
   }
 
@@ -370,28 +367,28 @@ export class Dscr {
 
   // Auto moderation
   getAutoModerationRules(guildId: string, options?: DscrRequestOptions) {
-    return this.request<RESTGetAPIAutoModerationRulesResult>("GET", Routes.autoModerationRules(guildId), options);
+    return this.request<RESTGetAPIAutoModerationRulesResult>("GET", Routes.guildAutoModerationRules(guildId), options);
   }
 
   getAutoModerationRule(guildId: string, ruleId: string, options?: DscrRequestOptions) {
-    return this.request<RESTGetAPIAutoModerationRuleResult>("GET", Routes.autoModerationRule(guildId, ruleId), options);
+    return this.request<RESTGetAPIAutoModerationRuleResult>("GET", Routes.guildAutoModerationRule(guildId, ruleId), options);
   }
 
   createAutoModerationRule(guildId: string, payload: unknown, options?: DscrRequestOptions) {
-    return this.request<unknown>("POST", Routes.autoModerationRules(guildId), options, payload);
+    return this.request<unknown>("POST", Routes.guildAutoModerationRules(guildId), options, payload);
   }
 
   modifyAutoModerationRule(guildId: string, ruleId: string, payload: unknown, options?: DscrRequestOptions) {
-    return this.request<unknown>("PATCH", Routes.autoModerationRule(guildId, ruleId), options, payload);
+    return this.request<unknown>("PATCH", Routes.guildAutoModerationRule(guildId, ruleId), options, payload);
   }
 
   deleteAutoModerationRule(guildId: string, ruleId: string, options?: DscrRequestOptions) {
-    return this.request<void>("DELETE", Routes.autoModerationRule(guildId, ruleId), options);
+    return this.request<void>("DELETE", Routes.guildAutoModerationRule(guildId, ruleId), options);
   }
 
   // Useful convenience endpoints
   getGuildPrune(guildId: string, query?: Record<string, string | number | boolean>, options?: DscrRequestOptions) {
-    return this.request<RESTGetAPIGuildPruneResult>("GET", Routes.guildPrune(guildId), options, undefined, query);
+    return this.request<{ pruned: number }>("GET", Routes.guildPrune(guildId), options, undefined, query);
   }
 
   getGuildVanityUrl(guildId: string, options?: DscrRequestOptions) {
@@ -403,7 +400,7 @@ export class Dscr {
   }
 
   getGuildWidget(guildId: string, options?: DscrRequestOptions) {
-    return this.request<RESTGetAPIGuildWidgetResult>("GET", Routes.guildWidget(guildId), options);
+    return this.request<RESTGetAPIGuildWidgetJSONResult>("GET", Routes.guildWidgetJSON(guildId), options);
   }
 
   getGuildWidgetImage(guildId: string, options?: DscrRequestOptions) {
