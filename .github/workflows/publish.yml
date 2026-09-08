@@ -10,51 +10,54 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      packages: write      # GitHub Packagesへの書き込みに必須
+      id-token: write      # npmのTrusted Publishing（トークンレス）に必須
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 速度向上のため、Node.jsの設定とキャッシュを共通化
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      # ユーザーお気に入りの最速マネージャー Bun をセットアップ
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      # Bunによる高速なインストールとビルド
       - name: Install dependencies & Build
         run: |
-          bun ci
+          bun install --frozen-lockfile
           bun run build
 
       # ----------------------------------------------------
-      # 1. npmjs.com へパブリッシュ
+      # 1. npmjs.com へパブリッシュ (Trusted Publishing)
       # ----------------------------------------------------
-      - name: Setup Node.js for npmjs.com
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-
       - name: Publish to npmjs.com
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # 引数で直接レジストリを指定。NPM_TOKENシークレットの管理は不要です！
+        run: npm publish --registry=https://registry.npmjs.org --access public
+        # ※もし従来の「Automationトークン」を使う場合は、以下のenvコメントアウトを解除してください
+        # env:
+        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # ----------------------------------------------------
       # 2. GitHub Packages へパブリッシュ
       # ----------------------------------------------------
-      - name: Setup Node.js for GitHub Packages
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://npm.pkg.github.com'
+      # GitHub Packagesは「@オーナー名/パッケージ名」の形式が必須なため、
+      # package.json をその場で一時的に書き換えます（jqコマンドを使用）
+      - name: Rewrite package.json name for GitHub Packages
+        run: |
+          jq '.name = "@'"${{ github.repository_owner }}"'/'"$(jq -r .name package.json)"'"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          cat package.json | grep '"name":' # 確認用ログ
 
       - name: Publish to GitHub Packages
-        run: npm publish
+        # GitHubレジストリの指定と、自動生成されるGITHUB_TOKENをそのまま使います
+        run: npm publish --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
